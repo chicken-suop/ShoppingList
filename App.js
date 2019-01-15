@@ -1,21 +1,45 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import {
+  createStackNavigator,
+  createBottomTabNavigator,
+  createAppContainer,
+} from 'react-navigation';
+import { Icon } from 'react-native-elements';
+import Current from './CurrentView';
+import Details from './DetailsView';
+import Archived from './ArchivedView';
 
-export default class App extends React.Component {
-  render() {
-    return (
-      <View style={styles.container}>
-        <Text>Open up App.js to start working on your app!</Text>
-      </View>
-    );
-  }
-}
+const CurrentStack = createStackNavigator(
+  { Current, Details },
+);
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
+const Main = createBottomTabNavigator(
+  { Current: CurrentStack, Archived },
+  {
+    defaultNavigationOptions: ({ navigation }) => ({
+      tabBarIcon: ({ focused, tintColor }) => {
+        const { routeName } = navigation.state;
+        let iconName;
+        if (routeName === 'Current') {
+          iconName = 'ios-list';
+        } else if (routeName === 'Archived') {
+          iconName = `ios-${focused ? 'filing' : 'archive'}`;
+        }
+
+        return (
+          <Icon
+            name={iconName}
+            type="ionicon"
+            color={tintColor}
+          />
+        );
+      },
+    }),
+    tabBarOptions: {
+      activeTintColor: 'tomato',
+      inactiveTintColor: 'gray',
+    },
   },
-});
+);
+
+export default createAppContainer(Main);
