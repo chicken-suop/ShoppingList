@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  View,
   Text,
   TextInput,
   TouchableHighlight,
@@ -10,6 +9,15 @@ import {
 import PropTypes from 'prop-types';
 
 export default class RenderItem extends React.Component {
+  static propTypes = {
+    item: PropTypes.shape({
+      key: PropTypes.string.isRequired,
+      text: PropTypes.string.isRequired,
+    }).isRequired,
+    animatedRowHeight: PropTypes.shape({}).isRequired,
+    updateRenderItem: PropTypes.func.isRequired,
+  }
+
   constructor(props) {
     super(props);
     this.textInput = React.createRef();
@@ -27,7 +35,6 @@ export default class RenderItem extends React.Component {
   render() {
     const { text, editing } = this.state;
     const { item, animatedRowHeight, updateRenderItem } = this.props;
-
     return (
       <Animated.View style={[styles.rowFrontContainer,
         {
@@ -43,30 +50,25 @@ export default class RenderItem extends React.Component {
           style={styles.rowFront}
           underlayColor="#AAA"
         >
-          <View>
-            {editing === item.key ? (
-              <TextInput
-                ref={this.textInput}
-                placeholder="Shopping list item"
-                onChangeText={t => this.setState({ text: t })}
-                onBlur={() => this.setState({ editing: null })}
-                onSubmitEditing={() => updateRenderItem(item.key, { text })}
-                value={text}
-              />
-            ) : (
-              <Text>
-                {item.text}
-              </Text>
-            )}
-          </View>
+          {editing === item.key ? (
+            <TextInput
+              ref={this.textInput}
+              placeholder="Shopping list item"
+              onChangeText={t => this.setState({ text: t })}
+              onBlur={() => this.setState({ editing: null })}
+              onSubmitEditing={() => updateRenderItem(item.key, { text })}
+              value={text}
+            />
+          ) : (
+            <Text>
+              {item.text}
+            </Text>
+          )}
         </TouchableHighlight>
       </Animated.View>
     );
   }
 }
-
-RenderItem.propTypes = {
-};
 
 const styles = StyleSheet.create({
   rowFront: {

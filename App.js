@@ -13,8 +13,12 @@ const CurrentStack = createStackNavigator(
   { Current, Details },
 );
 
+const ArchivedStack = createStackNavigator(
+  { Archived },
+);
+
 const Main = createBottomTabNavigator(
-  { Current: CurrentStack, Archived },
+  { Current: CurrentStack, Archived: ArchivedStack },
   {
     defaultNavigationOptions: ({ navigation }) => ({
       tabBarIcon: ({ focused, tintColor }) => {

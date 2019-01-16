@@ -1,7 +1,9 @@
 import React from 'react';
-import { ScrollView, Animated } from 'react-native';
+import { ScrollView, AlertIOS } from 'react-native';
 import PropTypes from 'prop-types';
 import { ListItem } from 'react-native-elements';
+import Plus from './components/Plus';
+import { store, fetch } from './helpers/asyncApi';
 
 export default class CurrentView extends React.Component {
   static propTypes = {
@@ -10,34 +12,90 @@ export default class CurrentView extends React.Component {
     }).isRequired,
   }
 
-  static navigationOptions = {
-    title: 'Current lists',
+  static navigationOptions({ navigation }) {
+    return {
+      title: 'Current lists',
+      headerRight: <Plus onPress={navigation.getParam('add')} />,
+    };
   }
 
   constructor(props) {
     super(props);
-    this.animatedRowHeight = {};
-    this.state = {
-      listViewData: Array(20).fill('').map((_, i) => {
-        this.animatedRowHeight[`${i}`] = new Animated.Value(1);
-        return { key: `${i}`, text: `Shopping list ${i}` };
-      }),
-    };
+    this.scrollViewRef = React.createRef();
+    this.state = { listViewData: [] };
   }
 
-  archive = (key) => {
-    if (!this.animationIsRunning) {
-      this.animationIsRunning = true;
-      Animated.timing(this.animatedRowHeight[key], { toValue: 0, duration: 200 }).start(() => {
-        this.setState((prevState) => {
-          const { listViewData } = prevState;
-          const newData = [...listViewData];
-          const prevIndex = listViewData.findIndex(item => item.key === key);
-          newData.splice(prevIndex, 1);
-          return { listViewData: newData };
-        }, () => { this.animationIsRunning = false; });
-      });
-    }
+  componentDidMount() {
+    const { navigation } = this.props;
+    navigation.setParams({ add: this.add });
+    this.fetchData();
+    this.willFocusSubscription = navigation.addListener(
+      'willFocus',
+      this.fetchData,
+    );
+  }
+
+  componentWillUnmount() {
+    this.willFocusSubscription.remove();
+  }
+
+  fetchData = async () => {
+    const listViewData = await fetch('shoppingLists') || [];
+    this.setState({ listViewData });
+  }
+
+  add = () => {
+    AlertIOS.prompt(
+      'New shopping list',
+      null,
+      (text) => {
+        const { listViewData } = this.state;
+        const renderItem = listViewData.find(e => e.text === text);
+        if (renderItem == null) {
+          this.setState((prevState) => {
+            const index = prevState.listViewData.length > 0
+              ? Number(prevState.listViewData[prevState.listViewData.length - 1].key) + 1
+              : 0;
+            const newData = [...prevState.listViewData];
+            newData.push({ key: `${index}`, text });
+            store('shoppingLists', newData);
+            return { listViewData: newData };
+          }, () => this.scrollViewRef.scrollToEnd());
+        } else {
+          alert('Can\'t create duplicate shopping list');
+        }
+      },
+    );
+  }
+
+  delete = (key, callback) => {
+    let deletedData;
+    this.setState((prevState) => {
+      const { listViewData } = prevState;
+      const newData = [...listViewData];
+      const prevIndex = listViewData.findIndex(item => item.key === key);
+      [deletedData] = newData.splice(prevIndex, 1);
+      store('shoppingLists', newData);
+
+      return { listViewData: newData };
+    }, () => callback(deletedData));
+  }
+
+  archive = key => this.delete(
+    key,
+    deletedData => this.storeDeletedData(deletedData),
+  );
+
+  storeDeletedData = async (deletedData) => {
+    const archivedData = await fetch('archivedShoppingLists') || [];
+    const index = archivedData.length > 0
+      ? Number(archivedData[archivedData.length - 1].key) + 1
+      : 0;
+
+    // Reassign key
+    Object.assign(deletedData, { key: `${index}` });
+    archivedData.push(deletedData);
+    store('archivedShoppingLists', archivedData);
   }
 
   render() {
@@ -45,22 +103,25 @@ export default class CurrentView extends React.Component {
     const { navigation } = this.props;
 
     return (
-      <ScrollView containerStyle={{ marginBottom: 20 }}>
+      <ScrollView
+        containerStyle={{ marginBottom: 20 }}
+        ref={(ref) => { this.scrollViewRef = ref; }}
+      >
         {listViewData.map(item => (
-          <Animated.View
+          <ListItem
+            title={item.text}
             key={item.key}
-            style={{
-              height: this.animatedRowHeight[item.key].interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, 50],
-              }),
-            }}
-          >
-            <ListItem
-              title={item.text}
-              onPress={() => navigation.navigate('Details', { archive: this.archive, item, title: item.text })}
-            />
-          </Animated.View>
+            onPress={() => navigation.navigate(
+              'Details',
+              {
+                archive: this.archive,
+                delete: key => this.delete(key, () => {}),
+                shoppingList: item.items,
+                key: item.key,
+                title: item.text,
+              },
+            )}
+          />
         ))}
       </ScrollView>
     );
